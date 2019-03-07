@@ -190,6 +190,11 @@ insert the ref link."
   :type 'function
   :group 'org-ref)
 
+(defcustom org-ref-insert-glossary-function
+  nil
+  "Generic function for inserting glossary links."
+  :type 'function
+  :group 'org-ref)
 
 (defcustom org-ref-cite-onclick-function
   nil
