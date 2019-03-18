@@ -31,6 +31,7 @@
 (eval-when-compile
   (require 'cl-lib))
 (require 'dash)
+(require 'easymenu)
 (require 'f)
 (require 'htmlize)
 (require 's)
@@ -3778,7 +3779,9 @@ provide their own version."
 
 (defun org-ref-org-menu ()
   "Add `org-ref' menu to the Org menu."
-
+  (when (and (symbolp org-ref-completion-library)
+             (functionp org-ref-insert-cite-function)
+             (functionp org-ref-insert-label-function)))
   (easy-menu-change
    '("Org") "org-ref"
    `(["Insert citation" ,org-ref-insert-cite-function]
@@ -3797,10 +3800,6 @@ provide their own version."
    "Show/Hide")
 
   (easy-menu-change '("Org") "--" nil "Show/Hide"))
-
-(add-hook 'org-mode-hook 'org-ref-org-menu)
-
-
 
 ;;* The end
 (provide 'org-ref-core)

@@ -542,11 +542,12 @@ this function to use it."
 	             glossary-candidates
 	             (list
 		            (cons
-		             (format "%s: %s."
-			                   (plist-get entry :name)
-			                   (plist-get entry :description))
+		              (format "%s: %s."
+			                               (plist-get entry :name)
+			                               (plist-get entry :description))
 		             ;; the returned candidate
-		             (list  (plist-get entry :name))))))))))
+                  (propertize key 'property 'glossary)))))))
+    glossary-candidates))
 
 (defun org-ref-ivy-acronym-candidates ()
   (let ((acronym-candidates '()))
@@ -561,54 +562,70 @@ this function to use it."
 	             acronym-candidates
 	             (list
 		            (cons
-		             ;; for helm
-		             (format "%s (%s)."
-			                   (plist-get entry :full)
-			                   (plist-get entry :abbrv))
+		             ;; for ivy
+                 (format "%s (%s)."
+			                    (plist-get entry :full)
+			                    (plist-get entry :abbrv))
 		             ;; the returned candidate
-		             (list key
-		                   (plist-get entry :abbrv))))))))
+                 (propertize key 'property 'acronym)))))))
     acronym-candidates))
 
-(defun org-ref-ivy-insert-acronym-term ()
+(defun org-ref-ivy-candidates-function ()
+  (sort
+   (seq-concatenate 'list
+                    (org-ref-ivy-glossary-candidates)
+                    (org-ref-ivy-acronym-candidates))
+   #'string-lessp))
+
+(defun org-ref-ivy-insert-glossary-action (candidate)
   (interactive)
-  (let ((candidates (org-ref-ivy-acronym-candidates))
-         (types '("acrshort" "acrlong" "acrfull" "ac" "AC" "acp" "Acp")))
-    (ivy-read "Acronym Term: " candidates
-              :action (lambda (candidate)
-                        (let ((type  (completing-read "Type" types nil t "ac")))
-                          (destructuring-bind (full abbrv)
-                              `(,(nth 1 candidate) ,(nth 2 candidate))
-                            (insert (format "[[%s:%s][%s]]" type full abbrv))))))))
+  (let* ((types '("gls" "glspl" "Gls" "Glspl" "glssymbol" "glsdesc"))
+         (type (completing-read "Type: " types nil t "gls"))
+         (key (format "%s" (cdr candidate)))
+         (entry (or-parse-glossary-entry key)))
+      (insert (format "[[%s:%s][%s]]" type (cdr candidate) (plist-get entry :name)))))
 
 
-(defun org-ref-insert-ivy-glossary-term ()
+(defun org-ref-ivy--format-acronym-link (type key entry)
+  (let ((desc
+         (cond ((string= type "acrshort") (plist-get entry :abbrv)
+                (string= type "acrlong") (plist-get entry :full)
+                (string= type "acrfull") (format "%s (%s)"
+                                                 (plist-get entry :full)
+                                                 (plist-get entry :abbrv)))
+               (t (plist-get entry :abbrv)))))
+    (format "[[%s:%s][%s]]" type key desc)))
+
+(defun org-ref-ivy-insert-acronym-action (candidate)
   (interactive)
-  (let ((candidates (org-ref-ivy-glossary-candidates))
-        (types '("gls" "glspl" "Gls" "Glspl" "glssymbol" "glsdesc")))
-    (ivy-read "Glossary Term: " candidates
-              :action (lambda (candidate)
-                        (let* ((type (completing-read "Type: " types nil t "gls")))
-                          (destructuring-bind (full abbrv)
-                              `(,(nth 1 candidate) ,(nth 2 candidate))
-                            (insert (format "[[%s:%s][%s]]" type full abbrv))))))))
+  (let* ((types '("acrshort" "acrlong" "acrfull" "ac" "AC" "acp" "Acp"))
+         (type (completing-read "Type: " types nil t "acrshort"))
+         (key  (format "%s" (cdr candidate)))
+         (entry (or-parse-acronym-entry key)))
+    (insert (org-ref-ivy--format-acronym-link type key entry))))
 
-(defun org-ref-ivy-add-glossary-term (type)
-  (pcase type
-    ('glossary (call-interactively #'org-ref-add-glossary-entry))
-    ('acronym (call-interactively #'org-ref-add-acronym-entry))))
+
+(defun org-ref-ivy-glossary-entry-action (candidate)
+  (interactive)
+  (let* ((type (get-text-property 0 'property (cdr candidate))))
+    (pcase type
+      (`glossary  (funcall-interactively #'org-ref-ivy-insert-glossary-action candidate))
+      (`acronym   (funcall-interactively #'org-ref-ivy-insert-acronym-action candidate)))))
 
 ;;;###autoload
-(defun org-ref-ivy-insert-glossary-link ()
+(defun org-ref-ivy-insert-glossary ()
+  "Insert a glossary link using ivy."
   (interactive)
-    (ivy-read "Add term: " '("glossary" "acronym")
-              :action '(1
-                        ("n" (lambda (candidate)
-                               (org-ref-ivy-add-glossary-term (intern candidate))) "add term")
-                        ("a" (lambda (candidate)
-                               (org-ref-insert-acronym-term)) "insert acronym")
-                        ("g"  (lambda (candidate)
-                               (org-ref-insert-glossary-term))) "insert glossary")))
-
+  (ivy-read "Entry: " (org-ref-ivy-candidates-function)
+            :action
+            '(1
+              ("e" (lambda (candidate)
+                     (funcall-interactively #'org-ref-ivy-glossary-entry-action candidate)) "entry")
+              ("g" (lambda (candidate)
+                     (call-interactively #'org-ref-add-glossary-entry)) "glossary")
+              ("a" (lambda (candidate)
+                     (call-interactively #'org-ref-add-acronym-entry)) "acronym"))
+              :require-match t
+              :caller #'org-ref-ivy-insert-glossary-link))
 (provide 'org-ref-ivy-cite)
 ;;; org-ref-ivy-cite.el ends here
