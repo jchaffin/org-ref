@@ -571,11 +571,9 @@ this function to use it."
     acronym-candidates))
 
 (defun org-ref-ivy-candidates-function ()
-  (sort
    (seq-concatenate 'list
                     (org-ref-ivy-glossary-candidates)
-                    (org-ref-ivy-acronym-candidates))
-   #'string-lessp))
+                    (org-ref-ivy-acronym-candidates)))
 
 (defun org-ref-ivy-insert-glossary-action (candidate)
   (interactive)
@@ -611,6 +609,13 @@ this function to use it."
     (pcase type
       (`glossary  (funcall-interactively #'org-ref-ivy-insert-glossary-action candidate))
       (`acronym   (funcall-interactively #'org-ref-ivy-insert-acronym-action candidate)))))
+
+
+(defun org-ref-ivy-candidate-p (x y)
+  (string-lessp (car x) (car y)))
+
+(defun org-ref-ivy-candidates ()
+    (sort (org-ref-ivy-candidates-function) #'org-ref-ivy-candidate-p))
 
 ;;;###autoload
 (defun org-ref-ivy-insert-glossary ()
