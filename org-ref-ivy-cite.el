@@ -34,6 +34,21 @@
 (require 'org-ref-citeproc)
 (require 'bibtex-completion)
 
+;; This lets you customize how the completion for ivy is displayed. The default
+;; is in the minibuffer. You may like to see something more like a popup though.
+(defcustom org-ref-ivy-display-function nil
+  "ivy function to display completion with.
+Set to `ivy-display-function-overlay' to get popups at point")
+
+(when org-ref-ivy-display-function
+  (add-to-list 'ivy-display-functions-alist
+	       `(org-ref-ivy-insert-cite-link . ,org-ref-ivy-display-function))
+  (add-to-list 'ivy-display-functions-alist
+	       `(org-ref-ivy-insert-label-link . ,org-ref-ivy-display-function))
+  (add-to-list 'ivy-display-functions-alist
+	       `(org-ref-ivy-insert-ref-link . ,org-ref-ivy-display-function)))
+
+
 (defvar org-ref-cite-types)
 (defvar org-ref-show-citation-on-enter)
 
@@ -421,8 +436,8 @@ prefix ARG is used, which uses `org-ref-default-bibliography'."
   "Insert a label with ivy."
   (interactive)
   (insert
-   (concat "label:"
-	         (ivy-read "label: " (org-ref-get-labels)))))
+   (concat (if (not (looking-back "label:" 6)) "label:" "")
+	   (ivy-read "label: " (org-ref-get-labels)))))
 
 
 (defun org-ref-ivy-insert-ref-link ()
@@ -430,13 +445,23 @@ prefix ARG is used, which uses `org-ref-default-bibliography'."
 Use a prefix arg to select the ref type."
   (interactive)
   (let ((label (ivy-read "label: " (org-ref-get-labels) :require-match t)))
-    (insert
-     (or (when (looking-at "$") " ") "")
-     (concat (if ivy-current-prefix-arg
-		             (ivy-read "type: " org-ref-ref-types)
-	             org-ref-default-ref-type)
-	           ":"
-	           label))))
+    (cond
+     ;; from a colon insert
+     ((looking-back ":" 1)
+      (insert label))
+     ;; non-default
+     (ivy-current-prefix-arg
+      (insert
+       (ivy-read "type: " org-ref-ref-types)
+       ":"
+       label))
+     ;; default
+     (t
+      (insert
+       (or (when (looking-at "$") " ") "")
+       (concat org-ref-default-ref-type
+	       ":"
+	       label))))))
 
 
 (require 'hydra)
@@ -448,6 +473,7 @@ _p_: Open pdf     _w_: WOS          _g_: Google Scholar _K_: Copy citation to cl
 _u_: Open url     _r_: WOS related  _P_: Pubmed         _k_: Copy key to clipboard
 _n_: Open notes   _c_: WOS citing   _C_: Crossref       _f_: Copy formatted entry
 _o_: Open entry   _e_: Email entry  ^ ^                 _q_: quit
+_i_: Insert cite  _h_: change type
 "
   ("o" org-ref-open-citation-at-point nil)
   ("p" org-ref-open-pdf-at-point nil)
@@ -472,8 +498,9 @@ _o_: Open entry   _e_: Email entry  ^ ^                 _q_: quit
 		               (org-ref-open-citation-at-point)
 		               (org-ref-email-bibtex-entry)))
    nil)
+  ("i" (funcall org-ref-insert-cite-function))
+  ("h" org-ref-change-cite-type)
   ("q" nil))
-
 
 
 (defun org-ref-ivy-onclick-actions ()
