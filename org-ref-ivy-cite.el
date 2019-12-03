@@ -613,21 +613,25 @@ this function to use it."
 
 (defun org-ref-ivy--format-acronym-link (type key entry)
   (let ((desc
-         (cond ((string= type "acrshort") (plist-get entry :abbrv)
-                (string= type "acrlong") (plist-get entry :full)
-                (string= type "acrfull") (format "%s (%s)"
-                                                 (plist-get entry :full)
-                                                 (plist-get entry :abbrv)))
+         (cond ((string= type "acrshort") (plist-get entry :abbrv))
+               ((string= type "acrlong") (plist-get entry :full))
+               ((string= type "acrfull")
+                (format "%s (%s)"
+                        (plist-get entry :full)
+                        (plist-get entry :abbrv)))
                (t (plist-get entry :abbrv)))))
     (format "[[%s:%s][%s]]" type key desc)))
 
 (defun org-ref-ivy-insert-acronym-action (candidate)
   (interactive)
-  (let* ((types '("acrshort" "acrlong" "acrfull" "ac" "AC" "acp" "Acp"))
-         (type (completing-read "Type: " types nil t "acrshort"))
-         (key  (format "%s" (cdr candidate)))
-         (entry (or-parse-acronym-entry key)))
-    (insert (org-ref-ivy--format-acronym-link type key entry))))
+  (let ((types '("acrshort" "acrlong" "acrfull" "ac" "AC" "acp" "Acp")))
+    (ivy-read "Type: " types
+              :action
+              (lambda (type)
+                (let* ((key (substring-no-properties (cdr candidate)))
+                       (entry (or-parse-acronym-entry key)))
+                  (insert (org-ref-ivy--format-acronym-link type key entry))))
+              :caller #'org-ref-ivy-insert-glossary)))
 
 
 (defun org-ref-ivy-glossary-entry-action (candidate)
@@ -657,7 +661,6 @@ this function to use it."
                      (call-interactively #'org-ref-add-glossary-entry)) "glossary")
               ("a" (lambda (candidate)
                      (call-interactively #'org-ref-add-acronym-entry)) "acronym"))
-              :require-match t
-              :caller #'org-ref-ivy-insert-glossary-link))
+              :require-match t))
 (provide 'org-ref-ivy-cite)
 ;;; org-ref-ivy-cite.el ends here
