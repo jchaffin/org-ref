@@ -77,7 +77,7 @@
     ("Edit notes" . helm-bibtex-edit-notes)
     ("Show entry" . helm-bibtex-show-entry)
     ("Add keywords to entries" . org-ref-helm-tag-entries)
-    ("Copy entry to clipboard" . bibtex-completion-copy-candidate) 
+    ("Copy entry to clipboard" . bibtex-completion-copy-candidate)
     ("Add PDF to library" . helm-bibtex-add-pdf-to-library))
   "Cons cells of string and function to set the actions of `helm-bibtex' to.
 The car of cons cell is the string describing the function.
@@ -111,11 +111,25 @@ The cdr of the the cons cell is the function to use."
       org-ref-cite-onclick-function 'org-ref-cite-click-helm)
 
 
-;;* Helm bibtex setup.
-(setq bibtex-completion-additional-search-fields '(keywords))
+(defcustom org-ref-bibtex-completion-add-keywords-field t
+  "Whether to add the `keywords' field to bibtex-completion."
+  :group 'org-ref
+  :type 'boolean)
 
-(setq bibtex-completion-display-formats
-      '((t . "${author:36} ${title:*} ${year:4} ${=has-pdf=:1}${=has-note=:1} ${=type=:7} ${keywords:31}")))
+
+;;* Helm bibtex setup.
+(when org-ref-bibtex-completion-add-keywords-field
+  (unless (or (member 'keywords bibtex-completion-additional-search-fields)
+              (member "keywords" bibtex-completion-additional-search-fields))
+    ;; Both symbol and string values are accepted, but b-c-a-s-f's
+    ;; Custom :type specifies string.
+    (push "keywords" bibtex-completion-additional-search-fields))
+  (let ((display-format
+         (alist-get t bibtex-completion-display-formats)))
+    (unless (string-match-p "{keywords:"
+                            display-format)
+      (setf (alist-get t bibtex-completion-display-formats)
+            (concat display-format " ${keywords:31}")))))
 
 (defun bibtex-completion-copy-candidate (_candidate)
   "Copy the selected bibtex entries to the clipboard.
@@ -347,7 +361,7 @@ Note also that pre text is preceded by a double colon, for example:
 ;;;###autoload
 (defun org-ref-helm-load-completions-async ()
   "Load the bibtex files into helm sources asynchronously.
-For large bibtext files, the intial call to ‘org-ref-helm-insert-cite-link’
+For large bibtex files, the initial call to ‘org-ref-helm-insert-cite-link’
 can take a long time to load the completion sources.  This function loads
 the completion sources in the background so the initial call to ‘org-ref-helm-insert-cite-link’ is much faster."
   (interactive)
@@ -534,7 +548,7 @@ Checks for pdf and doi, and add appropriate functions."
      candidates)
 
     (cl-pushnew
-     '("Copy formatted citation to clipboard" . org-ref-copy-entry-as-summary)
+     '("Copy formatted citation to clipboard" . org-ref-copy-cite-as-summary)
      candidates)
 
     (cl-pushnew

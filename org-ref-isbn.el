@@ -171,7 +171,7 @@ in the file. Data comes from worldcat."
 	 (entry))
     (with-current-buffer (url-retrieve-synchronously url t t)
       (goto-char (point-min))
-      (when (re-search-forward "@[a-zA-Z]+{.+\\(\n\s+[a-z\s={\.,?:;'0-9\n}-]+\\)+}$" nil t)
+      (when (re-search-forward "@[a-zA-Z]+{.+\\(\n\s+[^\n]+\\)+}$" nil t)
 	(setq entry (match-string 0))))
 
     (if (not entry)
@@ -181,6 +181,11 @@ in the file. Data comes from worldcat."
       (insert (with-temp-buffer
 		(insert (concat entry "\n}"))
 		(goto-char (point-min))
+		;; [2020-06-06 Sat] I got a report that ottobib returns entries
+		;; with ,, in the first line. here if we find one, I eliminate
+		;; one of them.
+		(when (re-search-forward ",," nil t)
+		  (delete-char -1))
 		(org-ref-isbn-clean-bibtex-entry)
 		(org-ref-clean-bibtex-entry)
 		(bibtex-fill-entry)

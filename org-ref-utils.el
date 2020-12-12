@@ -34,6 +34,10 @@
   :type 'boolean
   :group 'org-ref)
 
+(defcustom org-ref-search-whitespace-regexp "\\s-+"
+  "A whitespace regexp for use in `org-ref-strip-string."
+  :group 'org-ref)
+
 (defvar org-ref-cite-types)
 (defvar org-ref-get-pdf-filename-function)
 (defvar org-ref-notes-function)
@@ -142,12 +146,15 @@ ${org-latex-pdf-process}
 	     'aget
 	     `(("org-ref-completion-library" . ,(format "%s" org-ref-completion-library))
 	       ("org-ref-bibliography-notes" . ,(format "%s"  org-ref-bibliography-notes))
-	       ("orbn-p" . ,(format "%s" (file-exists-p org-ref-bibliography-notes)))
+	       ("org-ref-bibliography-notes exists" . ,(format "%s" (when org-ref-bibliography-notes
+								      (file-exists-p org-ref-bibliography-notes))))
 	       ("org-ref-version" . ,(org-ref-version))
 	       ("org-latex-pdf-process" . ,(format "%S" org-latex-pdf-process))
 	       ("org-ref-default-bibliography" . ,(format "%s" org-ref-default-bibliography))
 	       ("ordb-p" . ,(format "%s" (mapcar 'file-exists-p org-ref-default-bibliography)))
 	       ("ordb-listp" . ,(ords (listp org-ref-default-bibliography)))
+	       ("orbn-p" . ,(when org-ref-bibliography-notes
+			      (file-exists-p org-ref-bibliography-notes)))
 	       ("org-ref-pdf-directory" . ,(format "%s" org-ref-pdf-directory))
 	       ("orpd-p" . ,(format "%s" (file-exists-p org-ref-pdf-directory)))
 	       ("org-ref-location" . ,(format "%s" (locate-library "org-ref")))
@@ -212,8 +219,8 @@ It is also possible to access all other BibTeX database fields:
 %D doi
 %S series        %N note
 
-%f pdf filename
-%F absolute pdf filename
+%f pdf filename (key.pdf)
+%F absolute pdf filename (returned from `org-ref-get-pdf-filename-function')
 
 Usually, only %l is needed.  The other stuff is mainly for the echo area
 display, and for (setq reftex-comment-citations t).
@@ -267,9 +274,10 @@ environment, only %l is available."
                           (or n 2)))
                ((= l ?E) (car (reftex-get-bib-names "editor" entry)))
 	       ((= l ?f) (concat (org-ref-reftex-get-bib-field "=key=" entry) ".pdf"))
-	       ((= l ?F) (or (funcall org-ref-get-pdf-filename-function
-                               (org-ref-reftex-get-bib-field "=key=" entry))
-                      ""))
+
+	       ((= l ?F) (funcall org-ref-get-pdf-filename-function
+				  (org-ref-reftex-get-bib-field "=key=" entry)))
+
                ((= l ?h) (org-ref-reftex-get-bib-field "howpublished" entry))
                ((= l ?i) (org-ref-reftex-get-bib-field "institution" entry))
                ((= l ?j) (let ((jt (reftex-get-bib-field "journal" entry)))
@@ -467,6 +475,8 @@ Jabref, Mendeley and Zotero. See `bibtex-completion-find-pdf'."
   "Open the notes for bibtex key under point in a cite link in a buffer.
 Can also be called with THEKEY in a program."
   (interactive)
+  (when (null thekey)
+    (setq thekey (org-ref-get-bibtex-key-under-cursor)))
   (funcall org-ref-notes-function thekey))
 
 
@@ -474,17 +484,7 @@ Can also be called with THEKEY in a program."
 (defun org-ref-citation-at-point ()
   "Give message of current citation at point."
   (interactive)
-  (org-ref-format-entry (org-ref-get-bibtex-key-under-cursor))
-  ;; (let* ((results (org-ref-get-bibtex-key-and-file))
-  ;;        (key (car results))
-  ;;        (bibfile (cdr results)))
-  ;;   (message "%s" (progn
-  ;;                   (with-temp-buffer
-  ;;                     (insert-file-contents bibfile)
-  ;;                     (bibtex-set-dialect (parsebib-find-bibtex-dialect) t)
-  ;;                     (bibtex-search-entry key)
-  ;;                     (org-ref-bib-citation)))))
-  )
+  (org-ref-format-entry (org-ref-get-bibtex-key-under-cursor)))
 
 
 ;;;###autoload
@@ -518,6 +518,13 @@ function, and functions are conditionally added to it.")
   "Copy the bibtex entry for the citation at point as a summary."
   (interactive)
   (kill-new (org-ref-bib-citation)))
+
+
+;;;###autoload
+(defun org-ref-copy-cite-as-summary ()
+  "Copy a summary for the citation at point to the clipboard."
+  (interactive)
+  (kill-new (org-ref-link-message)))
 
 
 ;;;###autoload
@@ -566,6 +573,14 @@ directory.  You can also specify a new file."
 
 
 ;;**** functions that operate on key at point for click menu
+
+;;;###autoload
+(defun org-ref-ads-at-point ()
+  "Open the doi in ADS for bibtex key under point."
+  (interactive)
+  (doi-utils-ads (org-ref-get-doi-at-point)))
+
+
 ;;;###autoload
 (defun org-ref-wos-at-point ()
   "Open the doi in wos for bibtex key under point."
@@ -624,9 +639,9 @@ directory.  You can also specify a new file."
 (defun org-ref-strip-string (string)
   "Strip leading and trailing whitespace from the STRING."
   (replace-regexp-in-string
-   (concat search-whitespace-regexp "$" ) ""
+   (concat org-ref-search-whitespace-regexp "$" ) ""
    (replace-regexp-in-string
-    (concat "^" search-whitespace-regexp ) "" string)))
+    (concat "^" org-ref-search-whitespace-regexp ) "" string)))
 
 
 (defun org-ref-split-and-strip-string (string)
@@ -714,7 +729,7 @@ generated by `org-ref-reftex-format-citation'."
     ;; Remove empty volume, number field if empty
     (setq entry-html (replace-regexp-in-string "<b></b>," "" entry-html))
     ;; get rid of empty link and doi
-    (setq entry-html (replace-regexp-in-string " <a href=\"\">link</a>\\." "" entry-html))
+    (setq entry-html (replace-regexp-in-string " <a href=\"\">\\(link\\)?</a>\\.?" "" entry-html))
     ;; change double dash to single dash
     (setq entry-html (replace-regexp-in-string "--" "-" entry-html))
     (setq entry-html (replace-regexp-in-string " <a href=\"http://dx\\.doi\\.org/\">doi</a>\\." "" entry-html))
@@ -840,11 +855,15 @@ From the PDF specification 1.7:
     The first line of a PDF file shall be a header consisting of
     the 5 characters %PDF- followed by a version number of the
     form 1.N, where N is a digit between 0 and 7."
-  (let ((header (with-temp-buffer
-                  (set-buffer-multibyte nil)
-                  (insert-file-contents-literally filename nil 0 5)
-                  (buffer-string))))
-    (string-equal (encode-coding-string header 'utf-8) "%PDF-")))
+  (let* ((header (with-temp-buffer
+		   (set-buffer-multibyte nil)
+		   (insert-file-contents-literally filename nil 0 5)
+		   (buffer-string)))
+	 (valid (string-equal (encode-coding-string header 'utf-8) "%PDF-")))
+    (if valid
+	valid
+      (message "Invalid pdf. Header = %s" header)
+      nil)))
 
 
 ;;;###autoload

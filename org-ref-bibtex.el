@@ -71,6 +71,7 @@
 (declare-function key-chord-define-global "key-chord")
 (declare-function org-ref-find-bibliography "org-ref-core")
 (declare-function org-ref-open-bibtex-pdf "org-ref-core")
+(declare-function org-ref-open-bibtex-notes "org-ref-core")
 (declare-function org-ref-clean-bibtex-entry "org-ref-core")
 (declare-function org-ref-open-in-browser "org-ref-core")
 (declare-function org-ref-sort-bibtex-entry "org-ref-core")
@@ -416,7 +417,6 @@ This is defined in `org-ref-bibtex-journal-abbreviations'."
 	("ß" . "{\\\\ss}")
 	("≤" . "$\\\\le$")
 	("≥" . "$\\\\ge$")
-	("<" . "$<$")
 	("θ" . "$\\\\theta$")
 	("μ" . "$\\\\mu$")
 	("→" . "$\\\\rightarrow$")
@@ -948,9 +948,7 @@ entry having a doi."
 	   pdf)
       ;; when we have org-ref defined we may have pdf to find.
       (when (boundp 'org-ref-pdf-directory)
-	(setq pdf (expand-file-name
-		   (concat key ".pdf")
-		   org-ref-pdf-directory)))
+	(setq pdf (funcall org-ref-get-pdf-filename-function key)))
       (bibtex-copy-entry-as-kill)
       (compose-mail)
       (message-goto-body)

@@ -38,7 +38,9 @@
 ;; is in the minibuffer. You may like to see something more like a popup though.
 (defcustom org-ref-ivy-display-function nil
   "ivy function to display completion with.
-Set to `ivy-display-function-overlay' to get popups at point")
+Set to `ivy-display-function-overlay' to get popups at point."
+  :type 'function
+  :group 'org-ref)
 
 (when org-ref-ivy-display-function
   (add-to-list 'ivy-display-functions-alist
@@ -219,19 +221,19 @@ This uses a citeproc library."
     (format "%s\n\n" (orhc-formatted-citation entry))))
 
 
-(defun or-ivy-bibtex-insert-formatted-citation (_)
+(defun or-ivy-bibtex-insert-formatted-citation (entry)
   "Insert formatted citations at point for selected entries."
   (with-ivy-window
     (insert (mapconcat
-	           'identity
-	           (cl-loop for entry in org-ref-ivy-cite-marked-candidates
-		                  collect (org-ref-format-bibtex-entry entry))
-	           "\n\n"))))
+	     'identity
+	     (cl-loop for entry in (or org-ref-ivy-cite-marked-candidates (list entry))
+		      collect (org-ref-format-bibtex-entry entry))
+	     "\n\n"))))
 
 
 (defun or-ivy-bibtex-copy-formatted-citation (entry)
   "Copy formatted citation to clipboard for ENTRY."
-  (kill-new (org-ref-format-entry entry)))
+  (kill-new (org-ref-format-entry (cdr (assoc "=key=" entry)))))
 
 
 (defun or-ivy-bibtex-add-entry (_)
@@ -437,14 +439,16 @@ prefix ARG is used, which uses `org-ref-default-bibliography'."
   (interactive)
   (insert
    (concat (if (not (looking-back "label:" 6)) "label:" "")
-	   (ivy-read "label: " (org-ref-get-labels)))))
+	   (ivy-read "label: " (org-ref-get-labels)
+		     :caller 'org-ref-ivy-insert-label-link))))
 
 
 (defun org-ref-ivy-insert-ref-link ()
   "Insert a ref link with ivy.
 Use a prefix arg to select the ref type."
   (interactive)
-  (let ((label (ivy-read "label: " (org-ref-get-labels) :require-match t)))
+  (let ((label (ivy-read "label: " (org-ref-get-labels) :require-match t
+			 :caller 'org-ref-ivy-insert-ref-link)))
     (cond
      ;; from a colon insert
      ((looking-back ":" 1)
@@ -459,10 +463,9 @@ Use a prefix arg to select the ref type."
      (t
       (insert
        (or (when (looking-at "$") " ") "")
-       (concat org-ref-default-ref-type
+       (concat (org-ref-infer-ref-type label)
 	       ":"
 	       label))))))
-
 
 (require 'hydra)
 (setq hydra-is-helpful t)
@@ -476,7 +479,7 @@ _o_: Open entry   _e_: Email entry  ^ ^                 _q_: quit
 _i_: Insert cite  _h_: change type
 "
   ("o" org-ref-open-citation-at-point nil)
-  ("p" org-ref-open-pdf-at-point nil)
+  ("p" (funcall org-ref-open-pdf-function) nil)
   ("n" org-ref-open-notes-at-point nil)
   ("u" org-ref-open-url-at-point nil)
   ("w" org-ref-wos-at-point nil)
@@ -550,7 +553,6 @@ this function to use it."
 			                  'identity
 			                  (or org-ref-ivy-cite-marked-candidates (list key))
 			                  ", ")))))
-
 
 (ivy-set-display-transformer
  'org-ref-ivy-set-keywords

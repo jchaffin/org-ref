@@ -55,6 +55,15 @@
 (eval-when-compile
   (require 'cl-lib))
 
+
+;; See https://github.com/jkitchin/org-ref/issues/812
+;; apparently there is a function name change coming in
+;; (if (and (not (fboundp 'dnd-unescape-uri))
+;; 	 (fboundp 'dnd--escape-uri))
+;;     (defalias 'dnd-unescape-uri 'dnd--unescape-uri)
+;;   (warn "dnd-unescape-uri is undefined. Some things may not work."))
+
+
 (defgroup org-ref-url nil
   "Customization group for org-ref-url-utils"
   :tag "Org Ref URL"
@@ -330,10 +339,10 @@ not perfect, and some hits are not actually DOIs."
 (defun org-ref-url-add-nil (list)
   "Add nil to all missing keys in LIST."
   (let (newlist)
-    (mapcar (lambda (key)
-	      (unless (alist-get key list)
-		(push (cons key "nil") newlist)))
-	    (list :title :author :url :urldate :year))
+    (mapc (lambda (key)
+	    (unless (alist-get key list)
+	      (push (cons key "nil") newlist)))
+	  (list :title :author :url :urldate :year))
     (append list newlist)))
 
 
@@ -393,16 +402,20 @@ one in the minibuffer."
 		       org-ref-url-bibtex-template)
 		     'aget alist)))
 	(goto-char (point-max))
-	;; Place new entry one line after the last entry.
-	(while (not (looking-back "^}\n"))
-	  (delete-backward-char 1))
+	;; Place new entry one line after the last entry. Sometimes we are in a
+	;; new file though, in which case we don't want to do this.
+	(unless (bobp)
+	  (while (not (looking-back "^}\n" 2))
+	    (delete-char -1)))
 	(insert "\n")
 	(insert (if (require 'org-cliplink nil 'noerror)
 		    ;; Sanitize values by replacing html entities
 		    (org-ref-url-html-replace entry)
 		  entry))
+	(insert "\n")
 	(bibtex-beginning-of-entry)
-	(org-ref-clean-bibtex-entry)))))
+	(org-ref-clean-bibtex-entry)
+	(save-buffer)))))
 
 (provide 'org-ref-url-utils)
 ;;; org-ref-url-utils.el ends here

@@ -117,7 +117,7 @@ Use a double \\[universal-argument] \\[universal-argument] to insert a
                                         ;; insert a new link
                                         (insert
                                          (concat
-                                          org-ref-default-ref-type ":" label))
+                                          (org-ref-infer-ref-type label) ":" label))
                                         )))
                                    ;; one prefix, alternate ref link
                                    ((equal helm-current-prefix-arg '(4))
@@ -464,10 +464,9 @@ Run this with the point in a bibtex entry."
                                         'identity
                                         (helm-marked-candidates)
                                         ", "))))))
-        (fallback-source `((name . "Add new keywords")
-                           (dummy)
-                           (action . (lambda (candidate)
-                                       (org-ref-set-bibtex-keywords helm-pattern))))))
+        (fallback-source (helm-build-dummy-source "Add new keywords"
+                           :action (lambda (candidate)
+                                     (org-ref-set-bibtex-keywords helm-pattern)))))
     (helm :sources `(,keyword-source ,fallback-source))))
 
 (provide 'org-ref-helm)

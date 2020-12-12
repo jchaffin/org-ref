@@ -29,11 +29,23 @@
 ;;; Code:
 
 (require 'f)
-(require 'pdf-tools)
+
+;; [2019-10-13 Sun] I am commenting this out for now. I added it for some
+;; reason, but I cannot figure out why. It is pretty slow to load, so since I
+;; don't know why it is here, I am commenting it out until it is obvious again.
+;; (require 'pdf-tools)
+
 (eval-when-compile
   (require 'cl-lib))
 
 (declare-function org-ref-bibtex-key-from-doi "org-ref-bibtex.el")
+
+;; See https://github.com/jkitchin/org-ref/issues/812
+;; apparently there is a function name change coming in
+;; (if (and (not (fboundp 'dnd-unescape-uri))
+;; 	 (fboundp 'dnd--escape-uri))
+;;     (defalias 'dnd-unescape-uri 'dnd--unescape-uri)
+;;   (warn "dnd-unescape-uri is undefined. Some things may not work."))
 
 (defgroup org-ref-pdf nil
   "Customization group for org-ref-pdf"
@@ -266,7 +278,9 @@ variable `org-ref-pdf-doi-regex'."
 (defun org-ref-pdf-crossref-lookup ()
   "Lookup highlighted text in PDFView in CrossRef."
   (interactive)
-  (pdf-view-assert-active-region)
+  (require 'pdf-view)
+  (unless (pdf-view-active-region-p)
+    (error "The region is not active"))
   (let* ((txt (pdf-view-active-region-text)))
     (pdf-view-deactivate-region)
     (crossref-lookup (mapconcat 'identity txt "	 \n"))))

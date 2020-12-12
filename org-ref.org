@@ -83,7 +83,7 @@ index:cite
 
 org-ref uses the [[bibliography link]] to determine which bibtex files to get citations from, and falls back to the bibtex files defined in the variable ~reftex-default-bibliography~ or ~org-ref-default-bibliography~ if no bibliography link is found. Note that you *must* include a [[bibliography link]] in your document if you are exporting your document to pdf; ~org-ref-default-bibliography~ is not used by the [[BibTeX users][LaTeX exporter]].
 
-For simple citation needs, org-ref is simple to use. At the point you want to insert a citation, you select the "Org -> org-ref -> Insert citation" menu (or use the key-binding ~C-c ]~ by default), select the reference(s) you want in the helm-bibtex buffer and press enter. The citation will be inserted automatically into your org-file. You "select" an entry by using the arrow keys (or ~C-n~ and ~C-p~) to move up and down to the entry you want. You can also narrow the selection by typing a pattern to match, e.g. author name, title words, year, BibTeX key and entry types. For any other field (e.g. keywords), you will need to add it to the variable ~bibtex-completion-additional-search-fields~. You can select multiple entries by pressing ~C-SPC~ to mark entries in the helm-bibtex buffer.
+For simple citation needs, org-ref is simple to use. At the point you want to insert a citation, you select the "Org -> org-ref -> Insert citation" menu (or use the key-binding ~C-c ]~ by default), select the reference(s) you want in the helm-bibtex buffer and press enter. The citation will be inserted automatically into your org-file. You "select" an entry by using the arrow keys (or ~C-n~ and ~C-p~) to move up and down to the entry you want. You can also narrow the selection by typing a pattern to match, e.g. author name, title words, year, BibTeX key and entry types. If you want to match any other field, you need to add it to the variable ~bibtex-completion-additional-search-fields~; org-ref [[id:5d7a19d3-0411-4964-9154-99af4f281015][does this automatically]] for the ~keywords~ field. You can select multiple entries by pressing ~C-SPC~ to mark entries in the helm-bibtex buffer.
 
 If the cursor is on a citation key, you should see a message in the minibuffer that summarizes which citation it refers to. If you click on a key, you should see a helm selection buffer with some actions to choose, including opening the bibtex entry, opening/getting a pdf for the entry, searching the entry in Web of Science, etc...
 
@@ -262,11 +262,18 @@ Org-ref can also be configured to show bad label,ref and cite links by setting t
 This may be slow in large files, so you can turn it off by setting that variable to nil.
 
 ** org-ref customization of helm-bibtex
+:PROPERTIES:
+:ID:       5d7a19d3-0411-4964-9154-99af4f281015
+:END:
 index:helm-bibtex
 
-org-ref adds a few new features to helm-bibtex. First, we add keywords as a searchable field. Second, org-ref modifies the helm-bibtex search buffer to include the keywords. Since keywords now can have a central role in searching, we add some functionality to add keywords from the helm-bibtex buffer as a new action.
+org-ref adds a few new features to helm-bibtex.
+
+First, we add =keywords= as a searchable field, and modify the helm-bibtex search buffer to include the keywords. Since keywords now can have a central role in searching, we add some functionality to add keywords from the helm-bibtex buffer as a new action.
 
 We change the order of the actions in helm-bibtex to suit our work flow, and add some new actions as well. We define a format function for org-mode that is compatible with the usage defined in section [[#citations]]. Finally, we add some new fallback options for additional scientific search engines.
+
+The =keywords= field is added onto the existing value, such that existing customization wouldn’t be lost; if you still prefer to add the field yourself, set ~org-ref-bibtex-completion-add-keywords-field~ to nil before loading org-ref.
 
 ** Some basic org-ref utilities
 [[index:bibtex!clean entry]]
@@ -750,13 +757,14 @@ There are a few different ways in which PDFs can be opened from org-ref. By defa
 (setq org-ref-open-pdf-function 'my/org-ref-open-pdf-at-point)
 #+END_SRC
 
-An alternative approach adapted from https://github.com/jkitchin/org-ref/issues/184 to use pdfview is described here. First, unstall org-pdfview (on MELPA).
+An alternative approach adapted from https://github.com/jkitchin/org-ref/issues/184 to use pdfview is described here. First, install org-pdfview (on MELPA).
 
 Add this to your init file:
+
 #+BEGIN_SRC emacs-lisp
 ;; PDF links for org-mode
-(with-eval-after-load "pdf-tools"
-  (use-package org-pdfview
+(with-eval-after-load 'pdf-tools
+  (use-package org-pdftools
     :config
     ;; https://lists.gnu.org/archive/html/emacs-orgmode/2016-11/msg00169.html
     ;; Before adding, remove it (to avoid clogging)
@@ -764,7 +772,7 @@ Add this to your init file:
     ;; https://lists.gnu.org/archive/html/emacs-orgmode/2016-11/msg00176.html
     (add-to-list 'org-file-apps
 		 '("\\.pdf\\'" . (lambda (file link)
-				   (org-pdfview-open link))))))
+				   (org-pdftools-open link))))))
 #+END_SRC
 
 *** A note for Mendeley, JabRef and Zotero users
@@ -788,7 +796,7 @@ If ~bibtex-completion-pdf-field~ is defined, the function below should work with
 Mendeley users should set to:
 
 #+BEGIN_SRC emacs-lisp
-(setq org-ref-open-pdf-function 'org-ref-get-mendeley-filename)
+(setq org-ref-get-pdf-filename-function 'org-ref-get-mendeley-filename)
 #+END_SRC
 
 ** Setting up notes to work with multiple notes.org files
@@ -873,7 +881,11 @@ org-ref provides some support for glossary and acronym definitions.
 - glssymbol :: The symbol term
 - glsdesc :: The description of the term
 
-- acrshort :: Short version of the acroynm
+- ac :: a reference to an acronym
+- Ac :: capitalized reference to an acronym
+- acp :: a plural reference to an acronym
+- Acp :: capitalized plural reference to an acronym
+- acrshort :: Short version of the acronym
 - acrfull :: The full definition of the acronym
 - acrlong :: The full definition of the acronym with (abbrv).
 
@@ -980,7 +992,9 @@ This is a functional link that will open a buffer of clickable index entries:
 printindex:nil
 
 * References
-<<bibliography link>>
 
+<<bibliographystyle link>>
 bibliographystyle:unsrt
+
+<<bibliography link>>
 bibliography:org-ref.bib
